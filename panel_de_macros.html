@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MACROS PARA PISO 0, PISO 1</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        darkBg: '#0d1424',
+                        cardBg: '#1e293b',
+                        cardInner: '#0f172a',
+                        accentBlue: '#38bdf8',
+                        accentBadge: '#0284c7',
+                        hoverBtn: '#334155'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- FontAwesome icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: #0d1424;
+            color: #ffffff;
+        }
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #0d1424;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1e293b;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #38bdf8;
+        }
+    </style>
+</head>
+<body class="min-h-screen pb-12 antialiased selection:bg-sky-500 selection:text-white">
+
+    <div class="max-w-md mx-auto px-4 py-8">
+        
+        <!-- Header Section con edición interactiva -->
+        <header class="text-center mb-6">
+            <div class="flex items-center justify-center gap-2 group">
+                <h1 id="app-title" class="text-2xl sm:text-3xl font-extrabold text-sky-400 tracking-tight uppercase">
+                    MACROS PARA PISO 0, PISO 1
+                </h1>
+                <button onclick="editarTitulo()" title="Cambiar título de la página" class="text-slate-500 hover:text-sky-400 p-1 rounded-lg transition">
+                    <i class="fa-solid fa-pen-to-square text-base"></i>
+                </button>
+            </div>
+            <p id="app-subtitle" class="text-slate-400 text-sm font-medium mt-1">
+                Panel de consulta rápida y copia con un clic
+            </p>
+        </header>
+
+        <!-- Action Toolbar -->
+        <div class="space-y-3 mb-6">
+            <button id="copy-all-btn" onclick="copiarTodas()" 
+                class="w-full bg-sky-400 hover:bg-sky-500 text-slate-950 font-bold py-3 px-4 rounded-xl shadow-lg transition-all transform active:scale-98 flex items-center justify-center gap-2">
+                <i class="fa-solid fa-copy"></i>
+                <span id="copy-all-text">Copiar Todas las Macros (<span id="total-count">0</span>)</span>
+            </button>
+
+            <div class="flex gap-2">
+                <button onclick="abrirModalAgregar()" 
+                    class="flex-1 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700/60 font-semibold py-2.5 px-3 rounded-xl transition text-sm flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-plus"></i> Nueva Macro
+                </button>
+                <button onclick="restaurarPorDefecto()" 
+                    class="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-rose-400 border border-slate-700/60 font-semibold py-2.5 px-3 rounded-xl transition text-sm flex items-center justify-center gap-2" 
+                    title="Restaurar macros por defecto">
+                    <i class="fa-solid fa-rotate-left"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter / Search Box -->
+        <div class="relative mb-6">
+            <i class="fa-solid fa-magnifying-glass absolute left-3.5 top-3.5 text-slate-500 text-sm"></i>
+            <input type="text" id="search-input" oninput="filtrarMacros()" placeholder="Buscar macro por comando o texto..." 
+                class="w-full bg-slate-900/80 text-slate-200 placeholder-slate-500 text-sm pl-10 pr-4 py-2.5 rounded-xl border border-slate-800 focus:outline-none focus:border-sky-500/50 transition">
+        </div>
+
+        <!-- Notification Toast -->
+        <div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 bg-emerald-500 text-slate-950 px-4 py-2 rounded-full font-bold text-xs shadow-2xl opacity-0 pointer-events-none transition-all duration-300 transform -translate-y-2 z-50 flex items-center gap-2">
+            <i class="fa-solid fa-check-circle"></i>
+            <span id="toast-msg">¡Copiado al portapapeles!</span>
+        </div>
+
+        <!-- List of Macros -->
+        <div id="macros-list" class="space-y-4">
+            <!-- Items rendereados con JS -->
+        </div>
+
+        <!-- Empty State Message -->
+        <div id="empty-state" class="hidden text-center py-12">
+            <i class="fa-solid fa-folder-open text-4xl text-slate-700 mb-3"></i>
+            <p class="text-slate-500 text-sm">No se encontraron macros.</p>
+        </div>
+
+    </div>
+
+    <!-- Modal for Adding / Editing Macro -->
+    <div id="macro-modal" class="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 opacity-0 pointer-events-none transition-opacity duration-200">
+        <div class="bg-slate-900 border border-slate-800 w-full max-w-sm rounded-2xl p-6 shadow-2xl transform scale-95 transition-transform duration-200" id="modal-box">
+            <h2 id="modal-title" class="text-lg font-bold text-sky-400 mb-4 flex items-center gap-2">
+                <i class="fa-solid fa-pen-to-square"></i> Nueva Macro
+            </h2>
+            <form id="macro-form" onsubmit="guardarMacro(event)">
+                <input type="hidden" id="macro-id">
+                
+                <div class="mb-4">
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Título / Etiqueta (Opcional)</label>
+                    <input type="text" id="macro-title" placeholder="Ej: Presentación Piso 0" 
+                        class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-sm rounded-lg p-2.5 focus:outline-none focus:border-sky-500 transition">
+                </div>
+
+                <div class="mb-5">
+                    <label class="block text-xs font-semibold text-slate-400 mb-1">Comando / Texto de la Macro</label>
+                    <textarea id="macro-content" rows="3" required placeholder="/me MI MÁXIMO RESPETO..." 
+                        class="w-full bg-slate-950 border border-slate-800 text-slate-200 text-sm font-mono rounded-lg p-2.5 focus:outline-none focus:border-sky-500 transition"></textarea>
+                </div>
+
+                <div class="flex gap-2">
+                    <button type="button" onclick="cerrarModal()" 
+                        class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2 rounded-lg text-sm transition">
+                        Cancelar
+                    </button>
+                    <button type="submit" 
+                        class="flex-1 bg-sky-500 hover:bg-sky-400 text-slate-950 font-bold py-2 rounded-lg text-sm transition">
+                        Guardar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const defaultTitle = "MACROS PARA PISO 0, PISO 1";
+        const defaultMacros = [
+            {
+                id: "1",
+                title: "Presentación",
+                content: "/me MI MÁXIMO RESPETO SR/SRA [RECLUTA] [TU NOMBRE] SE HA PRESENTADO."
+            },
+            {
+                id: "2",
+                title: "Uso de Táser",
+                content: "/do TÁSER!! TÁSER!! TÁSER!!"
+            },
+            {
+                id: "3",
+                title: "Alto a Vehículo",
+                content: "/m AQUÍ LA POLICÍA. APARQUE SU VEHÍCULO A LA DERECHA Y APAGUE EL MOTOR."
+            },
+            {
+                id: "4",
+                title: "Esposado",
+                content: "/me LE COLOCA LAS ESPOSAS AJUSTANDO LAS MUÑECAS Y ASEGURA EL CIERRE DE SEGURIDAD."
+            },
+            {
+                id: "5",
+                title: "Lectura de Derechos",
+                content: "Tiene derecho a guardar silencio. Todo lo que diga puede ser usado en su contra. Tiene derecho a un abogado."
+            },
+            {
+                id: "6",
+                title: "Cacheo Secundario",
+                content: "/me COMIENZA A PALPAR LAS PRENDAS EXTERIORES E INTERIORES EN BUSCA DE OBJETOS ILÍCITOS."
+            }
+        ];
+
+        let macros = [];
+
+        function cargarConfiguracion() {
+            const tituloGuardado = localStorage.getItem('piso_app_title');
+            if (tituloGuardado) {
+                document.getElementById('app-title').innerText = tituloGuardado;
+                document.title = tituloGuardado;
+            }
+
+            const guardadas = localStorage.getItem('piso0_piso1_macros');
+            if (guardadas) {
+                try {
+                    macros = JSON.parse(guardadas);
+                } catch(e) {
+                    macros = [...defaultMacros];
+                }
+            } else {
+                macros = [...defaultMacros];
+            }
+            renderizar();
+        }
+
+        function editarTitulo() {
+            const tituloActual = document.getElementById('app-title').innerText;
+            const nuevoTitulo = prompt("Ingresa el nuevo título para la página:", tituloActual);
+            
+            if (nuevoTitulo && nuevoTitulo.trim() !== "") {
+                const tituloLimpio = nuevoTitulo.trim().toUpperCase();
+                document.getElementById('app-title').innerText = tituloLimpio;
+                document.title = tituloLimpio;
+                localStorage.setItem('piso_app_title', tituloLimpio);
+                mostrarToast("Título actualizado");
+            }
+        }
+
+        function guardarEnLocalStorage() {
+            localStorage.setItem('piso0_piso1_macros', JSON.stringify(macros));
+        }
+
+        function renderizar(filtradas = null) {
+            const lista = document.getElementById('macros-list');
+            const emptyState = document.getElementById('empty-state');
+            const items = filtradas !== null ? filtradas : macros;
+
+            document.getElementById('total-count').innerText = macros.length;
+            lista.innerHTML = '';
+
+            if (items.length === 0) {
+                emptyState.classList.remove('hidden');
+                return;
+            } else {
+                emptyState.classList.add('hidden');
+            }
+
+            items.forEach((macro, index) => {
+                const card = document.createElement('div');
+                card.className = "bg-slate-800/90 border border-slate-700/50 rounded-2xl p-4 shadow-md relative hover:border-slate-600 transition group";
+                
+                card.innerHTML = `
+                    <div class="flex justify-between items-center mb-3">
+                        <div class="flex items-center gap-2.5">
+                            <span class="w-7 h-7 bg-sky-600 text-white rounded-full flex items-center justify-center font-bold text-xs shadow-inner">
+                                ${index + 1}
+                            </span>
+                            ${macro.title ? `<span class="text-xs font-semibold text-slate-300">${escapeHtml(macro.title)}</span>` : ''}
+                        </div>
+                        <div class="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition">
+                            <button onclick="editarMacro('${macro.id}')" title="Editar" class="text-slate-400 hover:text-sky-400 p-1.5 rounded-lg text-xs hover:bg-slate-700 transition">
+                                <i class="fa-solid fa-pen"></i>
+                            </button>
+                            <button onclick="eliminarMacro('${macro.id}')" title="Eliminar" class="text-slate-400 hover:text-rose-400 p-1.5 rounded-lg text-xs hover:bg-slate-700 transition">
+                                <i class="fa-solid fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-950/90 rounded-xl p-3 mb-3 border border-slate-900">
+                        <p class="font-mono text-xs text-slate-200 tracking-wide break-words whitespace-pre-wrap leading-relaxed">${escapeHtml(macro.content)}</p>
+                    </div>
+
+                    <button onclick="copiarTexto('${macro.id}', this)" 
+                        class="btn-copy w-full bg-slate-700/70 hover:bg-slate-600/80 text-slate-200 font-medium py-2 rounded-xl text-xs transition duration-200 flex items-center justify-center gap-1.5 active:scale-98">
+                        <i class="fa-regular fa-copy"></i>
+                        <span>Copiar</span>
+                    </button>
+                `;
+                lista.appendChild(card);
+            });
+        }
+
+        function copiarTexto(id, btn) {
+            const macro = macros.find(m => m.id === id);
+            if (!macro) return;
+
+            copiarAlPortapapeles(macro.content, () => {
+                const icono = btn.querySelector('i');
+                const texto = btn.querySelector('span');
+
+                btn.classList.remove('bg-slate-700/70', 'hover:bg-slate-600/80', 'text-slate-200');
+                btn.classList.add('bg-emerald-600', 'hover:bg-emerald-500', 'text-white');
+                icono.className = 'fa-solid fa-check';
+                texto.innerText = '¡Copiado!';
+
+                mostrarToast("Macro copiada al portapapeles");
+
+                setTimeout(() => {
+                    btn.classList.remove('bg-emerald-600', 'hover:bg-emerald-500', 'text-white');
+                    btn.classList.add('bg-slate-700/70', 'hover:bg-slate-600/80', 'text-slate-200');
+                    icono.className = 'fa-regular fa-copy';
+                    texto.innerText = 'Copiar';
+                }, 1500);
+            });
+        }
+
+        function copiarTodas() {
+            if (macros.length === 0) return;
+
+            const todoElTexto = macros.map(m => m.content).join('\n\n');
+            const btn = document.getElementById('copy-all-btn');
+            const btnText = document.getElementById('copy-all-text');
+
+            copiarAlPortapapeles(todoElTexto, () => {
+                const prevText = btnText.innerHTML;
+                btn.classList.remove('bg-sky-400', 'hover:bg-sky-500', 'text-slate-950');
+                btn.classList.add('bg-emerald-500', 'text-slate-950');
+                btnText.innerHTML = '<i class="fa-solid fa-check"></i> ¡Todas las macros copiadas!';
+
+                mostrarToast("Todas las macros copiadas juntas");
+
+                setTimeout(() => {
+                    btn.classList.remove('bg-emerald-500');
+                    btn.classList.add('bg-sky-400', 'hover:bg-sky-500');
+                    btnText.innerHTML = prevText;
+                }, 2000);
+            });
+        }
+
+        function copiarAlPortapapeles(texto, onSuccess) {
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(texto).then(onSuccess).catch(() => fallbackCopy(texto, onSuccess));
+            } else {
+                fallbackCopy(texto, onSuccess);
+            }
+        }
+
+        function fallbackCopy(texto, onSuccess) {
+            const textArea = document.createElement("textarea");
+            textArea.value = texto;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-999999px";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            try {
+                document.execCommand('copy');
+                onSuccess();
+            } catch (err) {
+                mostrarToast("Error al copiar");
+            }
+            document.body.removeChild(textArea);
+        }
+
+        function mostrarToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('opacity-0', '-translate-y-2', 'pointer-events-none');
+            toast.classList.add('opacity-100', 'translate-y-0');
+
+            setTimeout(() => {
+                toast.classList.remove('opacity-100', 'translate-y-0');
+                toast.classList.add('opacity-0', '-translate-y-2', 'pointer-events-none');
+            }, 2000);
+        }
+
+        function filtrarMacros() {
+            const query = document.getElementById('search-input').value.toLowerCase().trim();
+            if (!query) {
+                renderizar();
+                return;
+            }
+            const filtradas = macros.filter(m => 
+                m.content.toLowerCase().includes(query) || 
+                (m.title && m.title.toLowerCase().includes(query))
+            );
+            renderizar(filtradas);
+        }
+
+        function abrirModalAgregar() {
+            document.getElementById('modal-title').innerHTML = '<i class="fa-solid fa-plus-circle"></i> Nueva Macro';
+            document.getElementById('macro-id').value = '';
+            document.getElementById('macro-title').value = '';
+            document.getElementById('macro-content').value = '';
+            
+            const modal = document.getElementById('macro-modal');
+            const box = document.getElementById('modal-box');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }
+
+        function editarMacro(id) {
+            const macro = macros.find(m => m.id === id);
+            if (!macro) return;
+
+            document.getElementById('modal-title').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar Macro';
+            document.getElementById('macro-id').value = macro.id;
+            document.getElementById('macro-title').value = macro.title || '';
+            document.getElementById('macro-content').value = macro.content;
+
+            const modal = document.getElementById('macro-modal');
+            const box = document.getElementById('modal-box');
+            modal.classList.remove('opacity-0', 'pointer-events-none');
+            box.classList.remove('scale-95');
+            box.classList.add('scale-100');
+        }
+
+        function cerrarModal() {
+            const modal = document.getElementById('macro-modal');
+            const box = document.getElementById('modal-box');
+            box.classList.remove('scale-100');
+            box.classList.add('scale-95');
+            modal.classList.add('opacity-0', 'pointer-events-none');
+        }
+
+        function guardarMacro(e) {
+            e.preventDefault();
+            const id = document.getElementById('macro-id').value;
+            const title = document.getElementById('macro-title').value.trim();
+            const content = document.getElementById('macro-content').value.trim();
+
+            if (!content) return;
+
+            if (id) {
+                const index = macros.findIndex(m => m.id === id);
+                if (index !== -1) {
+                    macros[index] = { id, title, content };
+                }
+            } else {
+                const newMacro = {
+                    id: Date.now().toString(),
+                    title,
+                    content
+                };
+                macros.push(newMacro);
+            }
+
+            guardarEnLocalStorage();
+            renderizar();
+            cerrarModal();
+            mostrarToast("Macro guardada correctamente");
+        }
+
+        function eliminarMacro(id) {
+            macros = macros.filter(m => m.id !== id);
+            guardarEnLocalStorage();
+            renderizar();
+            mostrarToast("Macro eliminada");
+        }
+
+        function restaurarPorDefecto() {
+            macros = [...defaultMacros];
+            localStorage.removeItem('piso_app_title');
+            document.getElementById('app-title').innerText = defaultTitle;
+            document.title = defaultTitle;
+            guardarEnLocalStorage();
+            renderizar();
+            mostrarToast("Macros y título restaurados por defecto");
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;")
+                      .replace(/</g, "&lt;")
+                      .replace(/>/g, "&gt;")
+                      .replace(/"/g, "&quot;")
+                      .replace(/'/g, "&#039;");
+        }
+
+        window.onload = function() {
+            cargarConfiguracion();
+        };
+    </script>
+</body>
+</html>
